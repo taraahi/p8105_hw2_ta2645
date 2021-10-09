@@ -71,4 +71,97 @@ The Mr. Trash Wheel data contains **`r nrow(trash_df)`** observations and **`r n
 The precipitation data contains **`r nrow(precipitation_combined)`** observations and **`r ncol(precipitation_combined)`** variables. These variables include month, total precipitation and year. The total precipitation, according to available data, was **`r precipitation_combined %>% filter(year == 2018) %>% pull(total) %>% sum()` in** in 2018.
 
 
+# Problem 2
+
+## Clean the _FiveThirtyEight_ data
+
+### We start with `pols-month.csv`. Instructions include:
+
+* Clean the data in pols-month.csv
+* Use `separate()` to break up the variable mon into integer variables year, month, and day
+* Replace month number with month name
+* Create a president variable taking values gop and dem
+* Remove prez_dem and prez_gop
+* Remove the day variable
+
+```{r}
+pols_df = 
+  read_csv("./data/pols-month.csv") %>% 
+  separate("mon", into = c("year", "month", "day")) %>% 
+  mutate(
+    month = month.name[as.numeric(month)],
+    month = str_to_lower(month),
+    president = recode(prez_gop, "0" = "dem", "1" = "gop", "2" = "gop")) %>% 
+  select(-starts_with("prez"),-day)
+```
+
+
+### Now we work on the `snp.csv` data
+
+Instructions include:
+
+* Arrange according to year and month
+* Organize so that year and month are the leading columns
+
+```{r}
+snp_df = 
+  read_csv("./data/snp.csv") %>% 
+  separate("date", into = c("month", "day", "year"), convert = TRUE) %>% 
+  mutate(
+    year, year = if_else(year <= 15, year + 2000, year + 1900)) %>% 
+  arrange(year, month) %>% 
+  mutate(
+    month = month.name[as.numeric(month)],
+    month = str_to_lower(month),
+    year = as.character(year)) %>%
+  select(year, month, close, -day)
+```
+
+### Next, we clean `unemployment.csv`
+
+We are instructed to tidy unemployment data so that it can be merged with the other datasets. Steps include: 
+
+* Switching from “wide” to “long” format
+* Ensuring that key variables have the same name
+* Ensuring that key variables take the same values
+
+```{r}
+unemployment_df = 
+  read.csv("./data/unemployment.csv") %>% 
+  janitor::clean_names() %>% 
+  pivot_longer(
+    jan:dec,
+    names_to = "month",
+    values_to = "unemployment") %>% 
+  mutate(
+    year = as.character(year))
+```
+
+### Finally, we join the datasets
+
+We merge `snp` into `pols` and then merge `unemployment` into the result.
+
+```{r}
+pols_snp_merged = 
+  left_join(pols_df, snp_df, by = "year")
+
+final_merge = 
+  left_join(pols_snp_merged, unemployment_df, by = "year")
+```
+
+#### Description of _FiveThirtyEight_ data
+
+The `pols` data has **`r nrow(pols_df)`** observations and **`r ncol(pols_df)`** variables. These variables tell us how many politicians identify as democratic (`dem`) or republican (`gop`) between `r min(pols_df$year)` and `r max(pols_df$year)`.
+
+The `snp` data has **`r nrow(snp_df)`** observations and **`r ncol(snp_df)`** variables. These variables tell us about the S&P stock market index from `r min(snp_df$year)` to `r max(snp_df$year)`. This includes the year, month and close values.
+
+The `unemploy` data has **`r nrow(unemployment_df)`** observations and **`r ncol(unemployment_df)`** variables. It shows the unemployment rate for each month throughout the year from the years `r min(unemployment_df$year)` and `r max(unemployment_df$year)`. 
+
+The merged dataset containing all three (`pols`, `snp` and `unemployment`) has **`r nrow(final_merge)`** observations and **`r ncol(final_merge)`** variables. It shows that between `r min(final_merge$year)` and `r max(final_merge$year)` with a republican (`gop`) president, the S&P index was **`r filter(final_merge, president == "gop") %>% pull(close) %>% mean() %>% round(2)`** and the unemployment rate was **`r filter(final_merge, president == "gop") %>% pull(unemployment) %>% mean() %>% round(2)`%**.
+When a democrat (`dem`) was president during this time period, the S&P index was **`r final_merge %>% drop_na(close) %>% filter(president == "dem") %>% pull(close) %>% mean() %>% round(2)`**.
+
+The data file also shows us information on governors, senators and representatives from both parties, as well as data broken down by month and not just year. For our puroses, we focused on year-level data and only looked at presidents. 
+
+
+# Problem 3
 
