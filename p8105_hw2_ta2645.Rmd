@@ -1,0 +1,74 @@
+---
+title: "P8105 Homework 2"
+author: "Tara Ahi"
+date: "10/6/2021"
+output: github_document
+---
+
+```{r setup}
+library(tidyverse)
+library(dplyr)
+library(readxl)
+```
+
+# Problem 1
+
+### Read and clean Mr. Trash Wheel Dataset
+
+```{r, message=FALSE}
+trash_df = 
+  read_excel("./data/Trash-Wheel-Collection-Totals-7-2020-2.xlsx",
+             sheet = "Mr. Trash Wheel",
+             skip = 1) %>% 
+  janitor::clean_names() %>% 
+  select("dumpster":"homes_powered") %>% 
+  drop_na("dumpster") %>% 
+  mutate(sports_balls = round(sports_balls, digits = 0))
+```
+
+
+### Read and clean precipitation data
+
+```{r}
+#2018 Data:
+precipitation_2018 =
+  read_excel("./data/Trash-Wheel-Collection-Totals-7-2020-2.xlsx",
+             sheet = "2018 Precipitation",
+             skip = 1) %>% 
+  janitor::clean_names() %>% 
+  drop_na("month") %>% 
+  mutate(year = 2018)
+
+#2019 Data:
+precipitation_2019 = 
+  read_excel("./data/Trash-Wheel-Collection-Totals-7-2020-2.xlsx",
+             sheet = "2019 Precipitation",
+             skip = 1) %>% 
+  janitor::clean_names() %>% 
+  drop_na(c("month")) %>% 
+  mutate(year = 2019)
+```
+
+### Combine participation data sets
+Here, we also convert _month_ to a character variable.
+
+```{r combine_precipitation_data}
+precipitation_combined =
+  bind_rows(precipitation_2018, precipitation_2019) %>% 
+  mutate(
+    month = month.name[as.numeric(month)],
+    month = str_to_lower((month))
+  )
+```
+
+
+### Mr. Trash Wheel data description
+
+The Mr. Trash Wheel data contains **`r nrow(trash_df)`** observations and **`r ncol(trash_df)`** variables. These variables list characteristics like number, weight and volume for each dumpster. They also describe each type of litter, such as plastic bottles, polystyrene, cigarette butts, and more. The median number of sports balls in a dumpster was **`r trash_df %>% filter(year == 2017) %>% pull(sports_balls) %>% median()`** in 2017.
+
+### Precipitation data description
+
+The precipitation data contains **`r nrow(precipitation_combined)`** observations and **`r ncol(precipitation_combined)`** variables. These variables include month, total precipitation and year. The total precipitation, according to available data, was **`r precipitation_combined %>% filter(year == 2018) %>% pull(total) %>% sum()` in** in 2018.
+
+
+
