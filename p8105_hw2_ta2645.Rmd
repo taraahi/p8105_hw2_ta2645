@@ -9,6 +9,7 @@ output: github_document
 library(tidyverse)
 library(dplyr)
 library(readxl)
+library(knitr)
 ```
 
 # Problem 1
@@ -143,10 +144,10 @@ We merge `snp` into `pols` and then merge `unemployment` into the result.
 
 ```{r}
 pols_snp_merged = 
-  left_join(pols_df, snp_df, by = "year")
+  left_join(pols_df, snp_df)
 
 final_merge = 
-  left_join(pols_snp_merged, unemployment_df, by = "year")
+  left_join(pols_snp_merged, unemployment_df)
 ```
 
 #### Description of _FiveThirtyEight_ data
@@ -157,11 +158,78 @@ The `snp` data has **`r nrow(snp_df)`** observations and **`r ncol(snp_df)`** va
 
 The `unemploy` data has **`r nrow(unemployment_df)`** observations and **`r ncol(unemployment_df)`** variables. It shows the unemployment rate for each month throughout the year from the years `r min(unemployment_df$year)` and `r max(unemployment_df$year)`. 
 
-The merged dataset containing all three (`pols`, `snp` and `unemployment`) has **`r nrow(final_merge)`** observations and **`r ncol(final_merge)`** variables. It shows that between `r min(final_merge$year)` and `r max(final_merge$year)` with a republican (`gop`) president, the S&P index was **`r filter(final_merge, president == "gop") %>% pull(close) %>% mean() %>% round(2)`** and the unemployment rate was **`r filter(final_merge, president == "gop") %>% pull(unemployment) %>% mean() %>% round(2)`%**.
+The merged dataset containing all three (`pols`, `snp` and `unemployment`) has **`r nrow(final_merge)`** observations and **`r ncol(final_merge)`** variables. It shows that between `r min(final_merge$year)` and `r max(final_merge$year)` with a republican (`gop`) president, the S&P index was **`r filter(final_merge, president == "gop") %>% pull(close) %>% mean() %>% round(2)`**.
 When a democrat (`dem`) was president during this time period, the S&P index was **`r final_merge %>% drop_na(close) %>% filter(president == "dem") %>% pull(close) %>% mean() %>% round(2)`**.
 
 The data file also shows us information on governors, senators and representatives from both parties, as well as data broken down by month and not just year. For our puroses, we focused on year-level data and only looked at presidents. 
 
 
 # Problem 3
+
+First steps: load and tidy the data:
+
+* Get rid of duplicate rows
+* Address the case structure changing by making things lowercase
+
+```{r}
+baby_names_df = 
+  read_csv("data/Popular_Baby_Names.csv") %>%
+  janitor::clean_names() %>%
+  mutate(
+  ethnicity = str_to_lower(ethnicity),
+  childs_first_name = str_to_lower(childs_first_name),
+  gender = str_to_lower(gender),
+  ethnicity = recode(ethnicity,
+  "asian and paci" = "asian and pacific islander",
+  "black non hisp" = "black non hispanic",
+  "white non hisp" = "white non hispanic")) %>%
+  distinct()
+```
+
+Now we make the Olivia table:
+
+```{r olivia_ranking, echo=TRUE}
+olivia_ranking = 
+  baby_names_df %>% 
+  filter(childs_first_name == "olivia") %>% 
+  select(-gender, -childs_first_name, -count) %>% 
+  arrange(year_of_birth) %>% 
+  pivot_wider(names_from = year_of_birth, values_from = rank)
+
+kable(olivia_ranking)
+```
+
+
+Ranking male names over the years:
+
+```{r male_ranking, echo=TRUE}
+male_ranking = 
+  baby_names_df %>% 
+  filter(gender == "male", rank == "1") %>% 
+  select(-gender, -rank, -count) %>% 
+  arrange(year_of_birth) %>% 
+  pivot_wider(names_from = year_of_birth, values_from = childs_first_name)
+
+kable(male_ranking)
+```
+
+Finally, for male, white non-hispanic children born in 2016, produce a scatter plot showing the number of children with a name (y axis) against the rank in popularity of that name (x axis).
+
+```{r scatterplot}
+male_wnh_2016 = 
+  baby_names_df %>% 
+  filter(gender == "male", ethnicity == "white non hispanic", year_of_birth == 2016)
+
+ggplot(male_wnh_2016, aes(x = rank, y = count, color = rank)) +
+  geom_point(alpha = 0.5) + 
+  labs(
+    title = "Name Popularity for White Non-hispanic Males in 2016",
+    x = "Name's Rank in Popularity",
+    y = "Number of Children",
+    caption = "Popular Baby Names Dataset",
+ggsave("male_wnh_2016.pdf", height = 4, width = 6)
+  )
+
+```
+
 
